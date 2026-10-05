@@ -1,6 +1,6 @@
 # Pipeline de entrega: Agenda de Eventos
 
-> Documento de desenho (semana 3). A implementação no GitHub Actions é a tarefa da semana 4.
+> Desenho feito na semana 3 e implementado na semana 4 em [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
 ## Objetivo
 
@@ -72,3 +72,21 @@ flowchart LR
 ## Métricas que vamos acompanhar (DORA)
 
 Frequência de deploy · tempo de espera para mudanças (*change lead time*) · taxa de falha de mudanças · tempo de recuperação de deploy com falha.
+
+## Implementação (GitHub Actions)
+
+| Estágio do desenho | Job no `ci.yml` | Gatilho |
+|---|---|---|
+| 1 · Commit | `testes` (matriz PHP 8.3 e 8.4: validate, lint, PHPUnit, `composer audit`) | Todo PR e push |
+| 2 · Aceite | `aceite` (`docker compose up` + `bin/smoke-test.sh`) e `imagem` (push no GHCR com tags `sha-xxxxxxx` e `latest`) | `aceite`: todo PR e push · `imagem`: só push na `main` |
+| 3 · Homologação | `homologacao` (environment `homologacao`) | Automático após `imagem` |
+| 4 · Produção | `producao` (environment `producao` com *required reviewers*) | Após aprovação manual |
+
+**Configurações do repositório que completam o pipeline:**
+
+- **Ruleset na `main`** ([`ruleset-main.json`](ruleset-main.json)): exige PR, checks `Testes (PHP 8.3)`, `Testes (PHP 8.4)` e `Aceite (Compose + smoke test)` verdes e branch atualizada, e bloqueia force push e exclusão.
+- **Environments:** `homologacao` (variável `FEATURE_BUSCA=true`) e `producao` (variável `FEATURE_BUSCA=false` + *required reviewers*).
+- **CODEOWNERS:** revisão automática pedida ao responsável.
+
+> O deploy é **simulado**: o "servidor" é o próprio runner, que baixa a imagem do GHCR, executa e roda o smoke test. Num cenário real, esse passo seria trocado pela implantação na nuvem ou num servidor (ex.: via SSH), mantendo a mesma estrutura de jobs, ambientes e aprovação.
+

@@ -1,0 +1,10 @@
+# Quem revisa o quê. O GitHub pede revisão automaticamente a estas pessoas.
+# Referência: https://docs.github.com/pt/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Dono padrão de todo o repositório
+*                   @tiagolpadua
+
+# Pipeline e infraestrutura
+/.github/           @tiagolpadua
+/Dockerfile         @tiagolpadua
+/compose.yaml       @tiagolpadua

@@ -65,6 +65,12 @@ docker build -t agenda-eventos .
 docker run --rm -p 8000:8000 agenda-eventos
 ```
 
+## Pipeline (CI/CD)
+
+Cada PR roda os **testes** (PHP 8.3 e 8.4) e o **aceite** (aplicação + MySQL via Compose + smoke test).
+Cada merge na `main` publica a imagem em `ghcr.io/<usuario>/<repositorio>`, implanta em **homologação** e, após aprovação, em **produção**.
+Detalhes em [docs/pipeline.md](docs/pipeline.md).
+
 ## Banco de dados
 
 Por padrão a aplicação usa **SQLite** (arquivo em `var/data/agenda.sqlite`, criado automaticamente com 3 eventos de exemplo).
@@ -98,6 +104,6 @@ Clique no tema para abrir as atividades da semana (publicadas após cada mentori
 | 1 | [GitHub](https://gist.github.com/tiagolpadua/920dd0c9cec883bb9c816c879f4adfd9) | ✅ Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
 | 2 | Docker | ✅ Dockerfile multi-stage, Compose com MySQL e volume, imagem no Docker Hub |
 | 3 | Integração e entrega contínua | ✅ Desenho do pipeline ([docs/pipeline.md](docs/pipeline.md)), regras de contribuição, feature toggle e smoke test |
-| 4 | GitHub Actions | _em breve_ |
+| 4 | GitHub Actions | ✅ Pipeline CI/CD completo, imagem no GHCR, environments com aprovação, ruleset na `main` |
 | 5 | NGINX: proxy reverso e API gateway | _em breve_ |
 | 6 | NGINX: FastCGI, cache e HTTPS | _em breve_ |

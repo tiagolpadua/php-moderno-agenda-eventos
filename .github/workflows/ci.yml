@@ -1,32 +1,225 @@
-# Primeira Action: roda os testes a cada push na main e em todo pull request.
+# Pipeline de CI/CD da Agenda de Eventos (desenho em docs/pipeline.md).
+#
+#   PR ou push ──► testes (PHP 8.3 e 8.4) ──► aceite (Compose + MySQL + smoke test)
+#   push na main ─────────────────────────────► imagem no GHCR ──► homologação ──► produção (aprovação manual)
+#
 # Referência: https://docs.github.com/pt/actions/reference/workflows-and-actions/workflow-syntax
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch: # permite rodar manualmente pela aba Actions
+
+# Em PRs, um novo push cancela a execução anterior do mesmo PR (economiza runner).
+# Na main, cada execução é independente (grupo = id da execução).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+# Menor privilégio: por padrão o GITHUB_TOKEN só lê o repositório.
+permissions:
+  contents: read
+
+env:
+  IMAGEM: ghcr.io/${{ github.repository }}
 
 jobs:
+  # ------------------------------------------------------------------
+  # 1. Estágio de commit: rápido, roda em todo PR
+  # ------------------------------------------------------------------
   testes:
-    name: Testes (PHPUnit)
+    name: Testes (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.3", "8.4"]
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+
+      - name: Instalar PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: none
+
+      - name: Validar composer.json
+        run: composer validate --strict
+
+      - name: Descobrir a pasta de cache do Composer
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache das dependências
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ matrix.php }}-${{ hashFiles('composer.json', 'composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-${{ matrix.php }}-
+
+      - name: Instalar dependências
+        run: composer install --no-interaction --no-progress
+
+      - name: Verificar sintaxe (lint)
+        run: find src public tests templates bin -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Rodar os testes
+        run: composer test
+
+      - name: Auditoria de segurança das dependências
+        run: composer audit
+
+  # ------------------------------------------------------------------
+  # 2. Estágio de aceite: aplicação real (imagem + MySQL) + smoke test
+  # ------------------------------------------------------------------
+  aceite:
+    name: Aceite (Compose + smoke test)
+    needs: testes
     runs-on: ubuntu-latest
 
     steps:
       - name: Baixar o código
         uses: actions/checkout@v7
 
-      - name: Instalar PHP
-        uses: shivammathur/setup-php@v2
+      - name: Subir aplicação + MySQL
+        run: docker compose up -d --build
+
+      - name: Smoke test
+        run: bin/smoke-test.sh http://localhost:8000
+        env:
+          TENTATIVAS: "40" # MySQL + migração levam alguns segundos para ficar prontos
+
+      - name: Mostrar logs (só se falhar)
+        if: failure()
+        run: docker compose logs
+
+      - name: Derrubar o ambiente
+        if: always()
+        run: docker compose down -v
+
+  # ------------------------------------------------------------------
+  # 3. Publicação da imagem (só na main): construída UMA vez, promovida depois
+  # ------------------------------------------------------------------
+  imagem:
+    name: Publicar imagem (GHCR)
+    needs: aceite
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # necessário para publicar no GitHub Container Registry
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+
+      - name: Preparar o Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login no GHCR
+        uses: docker/login-action@v4
         with:
-          php-version: "8.4"
-          tools: composer
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verificar sintaxe dos arquivos PHP
-        run: find src public tests templates -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Definir tags da imagem
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGEM }}
+          tags: |
+            type=sha
+            type=raw,value=latest
 
-      - name: Instalar dependências
-        run: composer install --no-interaction --no-progress
+      - name: Construir e publicar
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Rodar os testes
-        run: composer test
+      - name: Guardar a tag imutável (sha-xxxxxxx)
+        id: tag
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+  # ------------------------------------------------------------------
+  # 4. Deploy em homologação (automático)
+  #    Deploy SIMULADO: o "servidor" é o próprio runner. A imagem publicada é
+  #    baixada do GHCR, executada com a configuração do ambiente e verificada.
+  # ------------------------------------------------------------------
+  homologacao:
+    name: Deploy em homologação
+    needs: imagem
+    runs-on: ubuntu-latest
+    environment:
+      name: homologacao
+    concurrency: deploy-homologacao # um deploy por vez no ambiente
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Baixar o código (para o smoke test)
+        uses: actions/checkout@v7
+
+      - name: Login no GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Implantar ${{ needs.imagem.outputs.tag }}
+        run: |
+          docker run -d --name agenda -p 8000:8000 \
+            -e FEATURE_BUSCA="${{ vars.FEATURE_BUSCA || 'false' }}" \
+            "${IMAGEM,,}:${{ needs.imagem.outputs.tag }}"
+
+      - name: Smoke test em homologação
+        run: bin/smoke-test.sh http://localhost:8000
+
+  # ------------------------------------------------------------------
+  # 5. Deploy em produção: MESMA imagem, depois de aprovação manual
+  #    (a aprovação é configurada no environment "producao": Required reviewers)
+  # ------------------------------------------------------------------
+  producao:
+    name: Deploy em produção
+    needs: [imagem, homologacao]
+    runs-on: ubuntu-latest
+    environment:
+      name: producao
+    concurrency: deploy-producao
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Baixar o código (para o smoke test)
+        uses: actions/checkout@v7
+
+      - name: Login no GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Implantar ${{ needs.imagem.outputs.tag }}
+        run: |
+          docker run -d --name agenda -p 8000:8000 \
+            -e FEATURE_BUSCA="${{ vars.FEATURE_BUSCA || 'false' }}" \
+            "${IMAGEM,,}:${{ needs.imagem.outputs.tag }}"
+
+      - name: Smoke test em produção
+        run: bin/smoke-test.sh http://localhost:8000
