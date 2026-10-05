@@ -46,9 +46,21 @@ composer test             # roda os testes
 
 No seu repositório: **Code → Codespaces → Create codespace on main** e, no terminal, rode os mesmos comandos da opção 1.
 
-### Opção 3 — Docker
+### Opção 3 — Docker (aplicação + MySQL)
 
-Chega na **semana 2** 🙂
+```bash
+cp .env.example .env                 # ajuste DOCKERHUB_USER e as senhas
+docker compose up -d --build         # http://localhost:8000
+docker compose ps                    # app "healthy", migracao "exited (0)"
+docker compose down                  # para tudo, mantendo os dados no volume
+```
+
+Só a imagem, com SQLite dentro do container:
+
+```bash
+docker build -t agenda-eventos .
+docker run --rm -p 8000:8000 agenda-eventos
+```
 
 ## Banco de dados
 
@@ -80,7 +92,7 @@ Clique no tema para abrir as atividades da semana (publicadas após cada mentori
 | Semana | Tema | Tarefa |
 |---|---|---|
 | 1 | [GitHub](https://gist.github.com/tiagolpadua/920dd0c9cec883bb9c816c879f4adfd9) | ✅ Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
-| 2 | Docker | _em breve_ |
+| 2 | Docker | ✅ Dockerfile multi-stage, Compose com MySQL e volume, imagem no Docker Hub |
 | 3 | Integração e entrega contínua | _em breve_ |
 | 4 | GitHub Actions | _em breve_ |
 | 5 | NGINX: proxy reverso e API gateway | _em breve_ |

@@ -1,0 +1,59 @@
+# Sobe a aplicação + MySQL:   docker compose up -d --build
+# Ver o estado:               docker compose ps
+# Ver os logs:                docker compose logs -f app
+# Para tudo (mantém dados):   docker compose down
+# Apaga também os dados:      docker compose down -v
+
+# Bloco reaproveitado pelos serviços "app" e "migracao" (extensão + âncora YAML).
+x-conexao-banco: &conexao-banco
+  DB_DSN: "mysql:host=db;port=3306;dbname=agenda;charset=utf8mb4"
+  DB_USER: agenda
+  DB_PASSWORD: ${DB_PASSWORD:-agenda-segredo}
+
+services:
+  app:
+    build: .
+    # Nome da imagem: é com ele que fazemos o push para o Docker Hub (docker compose push app).
+    image: ${DOCKERHUB_USER:-seu-usuario}/agenda-eventos:${TAG:-latest}
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *conexao-banco
+      MIGRAR_AO_INICIAR: "false"     # quem cria as tabelas é o serviço "migracao"
+    depends_on:
+      migracao:
+        condition: service_completed_successfully   # só sobe depois da migração
+    restart: unless-stopped
+
+  # Roda uma única vez e termina: cria as tabelas e os dados de exemplo.
+  # Mesmo papel do "php artisan migrate" em uma aplicação Laravel.
+  migracao:
+    build: .
+    image: ${DOCKERHUB_USER:-seu-usuario}/agenda-eventos:${TAG:-latest}
+    command: ["php", "bin/migrar.php"]
+    environment:
+      <<: *conexao-banco
+    depends_on:
+      db:
+        condition: service_healthy   # espera o MySQL estar pronto para conexões
+    restart: "no"
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: agenda
+      MYSQL_USER: agenda
+      MYSQL_PASSWORD: ${DB_PASSWORD:-agenda-segredo}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-segredo}
+    volumes:
+      - dados-mysql:/var/lib/mysql   # volume nomeado: os dados sobrevivem ao "down"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  dados-mysql:

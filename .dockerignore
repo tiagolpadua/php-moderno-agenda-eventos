@@ -1,0 +1,15 @@
+# Tudo o que NÃO deve ir para o contexto de build (imagem menor e mais segura)
+.git
+.github
+.idea
+.vscode
+.env
+vendor
+var/data/*.sqlite
+tests
+phpunit.xml
+.phpunit.cache
+compose.yaml
+Dockerfile
+.dockerignore
+*.md
