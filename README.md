@@ -52,10 +52,12 @@ Para usar outro banco, defina variáveis de ambiente:
 | `DB_DSN` | `mysql:host=db;port=3306;dbname=agenda;charset=utf8mb4` |
 | `DB_USER` | `agenda` |
 | `DB_PASSWORD` | `segredo` |
+| `MIGRAR_AO_INICIAR` | `false` para **não** criar as tabelas na primeira requisição (aí use `php bin/migrar.php`) |
 
 ## Estrutura
 
 ```
+bin/             comandos de linha (migrar.php)
 public/          ponto de entrada (index.php) e arquivos estáticos (css)
 src/             código da aplicação (namespace App\)
 templates/       HTML das páginas
