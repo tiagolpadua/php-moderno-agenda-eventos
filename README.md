@@ -69,9 +69,11 @@ var/data/        banco SQLite local (ignorado pelo Git)
 
 ## Tarefas da mentoria
 
+Clique no tema para abrir as atividades da semana (publicadas após cada mentoria).
+
 | Semana | Tema | Tarefa |
 |---|---|---|
-| 1 | GitHub | Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
+| 1 | [GitHub](https://gist.github.com/tiagolpadua/920dd0c9cec883bb9c816c879f4adfd9) | Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
 | 2 | Docker | _em breve_ |
 | 3 | Integração e entrega contínua | _em breve_ |
 | 4 | GitHub Actions | _em breve_ |
