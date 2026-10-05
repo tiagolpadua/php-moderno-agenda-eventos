@@ -49,46 +49,51 @@ bin/smoke-test.sh         # verifica a aplicação no ar (padrão: http://localh
 
 No seu repositório: **Code → Codespaces → Create codespace on main** e, no terminal, rode os mesmos comandos da opção 1.
 
-### Opção 3 — Docker (aplicação + MySQL)
+### Opção 3 — Docker (NGINX + PHP-FPM + MySQL)
 
 ```bash
 cp .env.example .env                 # ajuste DOCKERHUB_USER e as senhas
-docker compose up -d --build         # http://localhost:8000
-docker compose ps                    # app "healthy", migracao "exited (0)"
+bin/gerar-certificado.sh             # certificado TLS autoassinado (só na primeira vez)
+docker compose up -d --build         # https://localhost:8443 (http://localhost:8000 redireciona)
+docker compose ps                    # nginx/app/db "healthy", migracao "exited (0)"
+INSEGURO=1 bin/smoke-test.sh https://localhost:8443
 docker compose down                  # para tudo, mantendo os dados no volume
 ```
 
-Só a imagem, com SQLite dentro do container:
+> O navegador vai avisar que o certificado não é confiável (é autoassinado). Para um certificado
+> confiável na sua máquina, use o [mkcert](https://github.com/FiloSottile/mkcert) gerando
+> `nginx/certs/agenda.crt` e `nginx/certs/agenda.key`.
 
-```bash
-docker build -t agenda-eventos .
-docker run --rm -p 8000:8000 agenda-eventos
-```
+A imagem da aplicação roda **PHP-FPM** (FastCGI, porta 9000): ela não atende HTTP sozinha, e sim através do NGINX.
 
 ## Arquitetura (com Docker Compose)
 
 ```mermaid
 flowchart LR
-    U[Navegador / cliente da API] -->|:8000| N[NGINX]
-    N -->|/css/*| S[(arquivos estáticos)]
-    N -->|/, /api/*, /api/v1/*| A1[app réplica 1]
-    N --> A2[app réplica 2]
+    U[Navegador / cliente da API] -->|HTTPS :8443| N[NGINX]
+    U -.->|HTTP :8000 → 301| N
+    N -->|/css/* gzip + cache| S[(arquivos estáticos)]
+    N -->|FastCGI :9000 · least_conn| A1[PHP-FPM réplica 1]
+    N --> A2[PHP-FPM réplica 2]
+    N <-->|microcache /api| C[(cache)]
     A1 --> DB[(MySQL)]
     A2 --> DB
 ```
 
 | Papel do NGINX | Onde ver |
 |---|---|
-| Servidor web | `/css/app.css` vem direto do NGINX, sem o cabeçalho `X-App-Instance` |
-| Proxy reverso | Todas as outras rotas vão para a aplicação, que não é exposta diretamente |
-| Load balancer | `X-App-Instance` alterna entre as réplicas (`docker compose up -d --scale app=3`) |
+| Terminação HTTPS (HTTP/2) | `http://localhost:8000` → `301` → `https://localhost:8443` |
+| Servidor web | `/css/app.css` vem direto do NGINX (sem `X-App-Instance`), com gzip e `Cache-Control` |
+| FastCGI | O NGINX fala com o PHP-FPM na porta 9000 ([`nginx/fastcgi-agenda.conf`](nginx/fastcgi-agenda.conf)) |
+| Load balancer | `least_conn` entre as réplicas: `X-App-Instance` muda (`docker compose up -d --scale app=3`) |
 | API gateway | `/api/v1/eventos` → `/api/eventos` e rate limit de 10 req/s por IP (`429` em JSON) |
+| Cache | Respostas da API guardadas por 10 s: `X-Cache-Status: MISS → HIT`, e `STALE` se o PHP cair |
 
-Verifique com `bin/verificar-nginx.sh`. A configuração está em [`nginx/default.conf`](nginx/default.conf).
+Verifique com `bin/verificar-nginx.sh`. A configuração está em [`nginx/templates/default.conf.template`](nginx/templates/default.conf.template).
 
 ## Pipeline (CI/CD)
 
-Cada PR roda os **testes** (PHP 8.3 e 8.4) e o **aceite** (aplicação + MySQL via Compose + smoke test).
+Cada PR roda os **testes** (PHP 8.3 e 8.4) e o **aceite** (NGINX + PHP-FPM + MySQL via Compose, smoke test e verificação do NGINX).
 Cada merge na `main` publica a imagem em `ghcr.io/<usuario>/<repositorio>`, implanta em **homologação** e, após aprovação, em **produção**.
 Detalhes em [docs/pipeline.md](docs/pipeline.md).
 
@@ -107,8 +112,9 @@ Para usar outro banco, defina variáveis de ambiente:
 ## Estrutura
 
 ```
-bin/             comandos de linha (migrar.php, smoke-test.sh, verificar-nginx.sh)
-nginx/           configuração do NGINX
+bin/             comandos de linha (migrar.php, smoke-test.sh, verificar-nginx.sh, gerar-certificado.sh)
+nginx/           configuração do NGINX (template, FastCGI, cache e certificados)
+docker/          configuração do PHP-FPM e do OPcache usada na imagem
 docs/            documentação (desenho do pipeline)
 public/          ponto de entrada (index.php) e arquivos estáticos (css)
 src/             código da aplicação (namespace App\)
@@ -128,4 +134,4 @@ Clique no tema para abrir as atividades da semana (publicadas após cada mentori
 | 3 | Integração e entrega contínua | ✅ Desenho do pipeline ([docs/pipeline.md](docs/pipeline.md)), regras de contribuição, feature toggle e smoke test |
 | 4 | GitHub Actions | ✅ Pipeline CI/CD completo, imagem no GHCR, environments com aprovação, ruleset na `main` |
 | 5 | NGINX: proxy reverso e API gateway | ✅ NGINX na frente de 2 réplicas: estáticos, proxy reverso, load balancer, `/api/v1` e rate limit |
-| 6 | NGINX: FastCGI, cache e HTTPS | _em breve_ |
+| 6 | NGINX: FastCGI, cache e HTTPS | ✅ PHP-FPM via FastCGI, `least_conn`, gzip, microcache, HTTPS com HTTP/2 |

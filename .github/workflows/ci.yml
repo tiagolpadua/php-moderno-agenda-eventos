@@ -86,16 +86,20 @@ jobs:
       - name: Baixar o código
         uses: actions/checkout@v7
 
-      - name: Subir aplicação + MySQL
+      - name: Gerar certificado TLS autoassinado
+        run: bin/gerar-certificado.sh
+
+      - name: Subir NGINX + PHP-FPM + MySQL
         run: docker compose up -d --build
 
-      - name: Smoke test
-        run: bin/smoke-test.sh http://localhost:8000
+      - name: Smoke test (HTTPS)
+        run: bin/smoke-test.sh https://localhost:8443
         env:
           TENTATIVAS: "40" # MySQL + migração levam alguns segundos para ficar prontos
+          INSEGURO: "1"    # certificado autoassinado
 
-      - name: Verificar NGINX (estáticos, balanceamento e gateway)
-        run: bin/verificar-nginx.sh http://localhost:8000
+      - name: Verificar NGINX (HTTPS, estáticos, FastCGI, balanceamento, cache e gateway)
+        run: bin/verificar-nginx.sh https://localhost:8443 http://localhost:8000
 
       - name: Mostrar logs (só se falhar)
         if: failure()
@@ -158,8 +162,9 @@ jobs:
 
   # ------------------------------------------------------------------
   # 4. Deploy em homologação (automático)
-  #    Deploy SIMULADO: o "servidor" é o próprio runner. A imagem publicada é
-  #    baixada do GHCR, executada com a configuração do ambiente e verificada.
+  #    Deploy SIMULADO: o "servidor" é o próprio runner. A pilha completa
+  #    (NGINX + PHP-FPM + MySQL) sobe com o Compose usando a imagem PUBLICADA
+  #    no GHCR (IMAGEM_APP, sem build) e a configuração do ambiente.
   # ------------------------------------------------------------------
   homologacao:
     name: Deploy em homologação
@@ -173,7 +178,7 @@ jobs:
       packages: read
 
     steps:
-      - name: Baixar o código (para o smoke test)
+      - name: Baixar o código (compose, NGINX e scripts)
         uses: actions/checkout@v7
 
       - name: Login no GHCR
@@ -185,12 +190,17 @@ jobs:
 
       - name: Implantar ${{ needs.imagem.outputs.tag }}
         run: |
-          docker run -d --name agenda -p 8000:8000 \
-            -e FEATURE_BUSCA="${{ vars.FEATURE_BUSCA || 'false' }}" \
-            "${IMAGEM,,}:${{ needs.imagem.outputs.tag }}"
+          bin/gerar-certificado.sh
+          export IMAGEM_APP="${IMAGEM,,}:${{ needs.imagem.outputs.tag }}"
+          docker compose up -d --no-build
+        env:
+          FEATURE_BUSCA: ${{ vars.FEATURE_BUSCA || 'false' }}
 
       - name: Smoke test em homologação
-        run: bin/smoke-test.sh http://localhost:8000
+        run: bin/smoke-test.sh https://localhost:8443
+        env:
+          TENTATIVAS: "40"
+          INSEGURO: "1"
 
   # ------------------------------------------------------------------
   # 5. Deploy em produção: MESMA imagem, depois de aprovação manual
@@ -208,7 +218,7 @@ jobs:
       packages: read
 
     steps:
-      - name: Baixar o código (para o smoke test)
+      - name: Baixar o código (compose, NGINX e scripts)
         uses: actions/checkout@v7
 
       - name: Login no GHCR
@@ -220,9 +230,14 @@ jobs:
 
       - name: Implantar ${{ needs.imagem.outputs.tag }}
         run: |
-          docker run -d --name agenda -p 8000:8000 \
-            -e FEATURE_BUSCA="${{ vars.FEATURE_BUSCA || 'false' }}" \
-            "${IMAGEM,,}:${{ needs.imagem.outputs.tag }}"
+          bin/gerar-certificado.sh
+          export IMAGEM_APP="${IMAGEM,,}:${{ needs.imagem.outputs.tag }}"
+          docker compose up -d --no-build
+        env:
+          FEATURE_BUSCA: ${{ vars.FEATURE_BUSCA || 'false' }}
 
       - name: Smoke test em produção
-        run: bin/smoke-test.sh http://localhost:8000
+        run: bin/smoke-test.sh https://localhost:8443
+        env:
+          TENTATIVAS: "40"
+          INSEGURO: "1"

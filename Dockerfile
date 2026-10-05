@@ -16,12 +16,15 @@ COPY src/ src/
 RUN composer dump-autoload --no-dev --optimize
 
 # ------------------------------------------------------------
-# Estágio 2: imagem final, só com o necessário para executar
+# Estágio 2: imagem final com PHP-FPM (atende o NGINX via FastCGI na porta 9000)
 # ------------------------------------------------------------
-FROM php:8.4-cli-alpine AS app
+FROM php:8.4-fpm-alpine AS app
 
-# A imagem oficial já traz o driver do SQLite. O do MySQL é instalado aqui.
-RUN docker-php-ext-install pdo_mysql
+# Driver do MySQL e OPcache (cache do código PHP compilado).
+RUN docker-php-ext-install pdo_mysql opcache
+
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache-agenda.ini
+COPY docker/php-fpm-agenda.conf /usr/local/etc/php-fpm.d/zz-agenda.conf
 
 WORKDIR /app
 
@@ -34,12 +37,11 @@ RUN mkdir -p var/data && chown -R www-data:www-data var
 # Nunca rode a aplicação como root dentro do container.
 USER www-data
 
-# Servidor embutido do PHP com 4 processos.
-# Serve para estudo; na semana 6 ele será trocado por PHP-FPM + NGINX.
-ENV PHP_CLI_SERVER_WORKERS=4
-EXPOSE 8000
+# FastCGI, não HTTP: só o NGINX conversa com esta porta.
+EXPOSE 9000
 
+# O PHP-FPM não fala HTTP: o healthcheck verifica se a porta FastCGI está aceitando conexões.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget -qO- http://127.0.0.1:8000/health || exit 1
+    CMD php -r 'exit(@fsockopen("127.0.0.1", 9000) ? 0 : 1);'
 
-CMD ["php", "-S", "0.0.0.0:8000", "-t", "public", "public/index.php"]
+CMD ["php-fpm"]

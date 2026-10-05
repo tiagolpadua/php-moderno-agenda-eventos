@@ -88,5 +88,5 @@ Frequência de deploy · tempo de espera para mudanças (*change lead time*) · 
 - **Environments:** `homologacao` (variável `FEATURE_BUSCA=true`) e `producao` (variável `FEATURE_BUSCA=false` + *required reviewers*).
 - **CODEOWNERS:** revisão automática pedida ao responsável.
 
-> O deploy é **simulado**: o "servidor" é o próprio runner, que baixa a imagem do GHCR, executa e roda o smoke test. Num cenário real, esse passo seria trocado pela implantação na nuvem ou num servidor (ex.: via SSH), mantendo a mesma estrutura de jobs, ambientes e aprovação.
+> O deploy é **simulado**: o "servidor" é o próprio runner, que sobe a pilha (NGINX + PHP-FPM + MySQL) com o Compose usando a imagem **publicada** no GHCR (`IMAGEM_APP`, sem build) e roda o smoke test em HTTPS. Num cenário real, esse passo seria trocado pela implantação na nuvem ou num servidor (ex.: via SSH), mantendo a mesma estrutura de jobs, ambientes e aprovação.
 
