@@ -1,0 +1,38 @@
+/* Estilo mínimo de propósito — o visual não é o foco da trilha DevOps. */
+:root {
+    --cor-primaria: #1f3a8a;
+    --cor-texto: #1f2937;
+    --cor-borda: #d1d5db;
+    --cor-erro: #b91c1c;
+    --cor-sucesso: #166534;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0 auto;
+    max-width: 960px;
+    padding: 1.5rem;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--cor-texto);
+    line-height: 1.5;
+}
+
+header { border-bottom: 3px solid var(--cor-primaria); margin-bottom: 1.5rem; }
+h1 { color: var(--cor-primaria); margin-bottom: 0; }
+.subtitulo { margin-top: .25rem; color: #6b7280; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .5rem; border-bottom: 1px solid var(--cor-borda); }
+
+form { display: grid; gap: 1rem; max-width: 420px; }
+.campo { display: grid; gap: .25rem; }
+input { padding: .5rem; border: 1px solid var(--cor-borda); border-radius: 4px; font: inherit; }
+input[aria-invalid="true"] { border-color: var(--cor-erro); }
+button { padding: .6rem 1rem; background: var(--cor-primaria); color: #fff; border: 0; border-radius: 4px; font: inherit; cursor: pointer; }
+
+.erro { color: var(--cor-erro); font-size: .875rem; }
+.alerta { padding: .75rem 1rem; border-radius: 4px; }
+.sucesso { background: #dcfce7; color: var(--cor-sucesso); }
+
+footer { margin-top: 2rem; color: #6b7280; }
