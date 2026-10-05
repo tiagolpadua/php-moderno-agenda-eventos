@@ -94,6 +94,9 @@ jobs:
         env:
           TENTATIVAS: "40" # MySQL + migração levam alguns segundos para ficar prontos
 
+      - name: Verificar NGINX (estáticos, balanceamento e gateway)
+        run: bin/verificar-nginx.sh http://localhost:8000
+
       - name: Mostrar logs (só se falhar)
         if: failure()
         run: docker compose logs

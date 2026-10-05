@@ -65,6 +65,27 @@ docker build -t agenda-eventos .
 docker run --rm -p 8000:8000 agenda-eventos
 ```
 
+## Arquitetura (com Docker Compose)
+
+```mermaid
+flowchart LR
+    U[Navegador / cliente da API] -->|:8000| N[NGINX]
+    N -->|/css/*| S[(arquivos estáticos)]
+    N -->|/, /api/*, /api/v1/*| A1[app réplica 1]
+    N --> A2[app réplica 2]
+    A1 --> DB[(MySQL)]
+    A2 --> DB
+```
+
+| Papel do NGINX | Onde ver |
+|---|---|
+| Servidor web | `/css/app.css` vem direto do NGINX, sem o cabeçalho `X-App-Instance` |
+| Proxy reverso | Todas as outras rotas vão para a aplicação, que não é exposta diretamente |
+| Load balancer | `X-App-Instance` alterna entre as réplicas (`docker compose up -d --scale app=3`) |
+| API gateway | `/api/v1/eventos` → `/api/eventos` e rate limit de 10 req/s por IP (`429` em JSON) |
+
+Verifique com `bin/verificar-nginx.sh`. A configuração está em [`nginx/default.conf`](nginx/default.conf).
+
 ## Pipeline (CI/CD)
 
 Cada PR roda os **testes** (PHP 8.3 e 8.4) e o **aceite** (aplicação + MySQL via Compose + smoke test).
@@ -86,7 +107,8 @@ Para usar outro banco, defina variáveis de ambiente:
 ## Estrutura
 
 ```
-bin/             comandos de linha (migrar.php, smoke-test.sh)
+bin/             comandos de linha (migrar.php, smoke-test.sh, verificar-nginx.sh)
+nginx/           configuração do NGINX
 docs/            documentação (desenho do pipeline)
 public/          ponto de entrada (index.php) e arquivos estáticos (css)
 src/             código da aplicação (namespace App\)
@@ -105,5 +127,5 @@ Clique no tema para abrir as atividades da semana (publicadas após cada mentori
 | 2 | Docker | ✅ Dockerfile multi-stage, Compose com MySQL e volume, imagem no Docker Hub |
 | 3 | Integração e entrega contínua | ✅ Desenho do pipeline ([docs/pipeline.md](docs/pipeline.md)), regras de contribuição, feature toggle e smoke test |
 | 4 | GitHub Actions | ✅ Pipeline CI/CD completo, imagem no GHCR, environments com aprovação, ruleset na `main` |
-| 5 | NGINX: proxy reverso e API gateway | _em breve_ |
+| 5 | NGINX: proxy reverso e API gateway | ✅ NGINX na frente de 2 réplicas: estáticos, proxy reverso, load balancer, `/api/v1` e rate limit |
 | 6 | NGINX: FastCGI, cache e HTTPS | _em breve_ |
