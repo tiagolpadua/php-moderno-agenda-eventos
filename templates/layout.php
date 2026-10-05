@@ -16,7 +16,7 @@ use function App\e;
 <body>
 <header>
     <h1><?= e($titulo) ?></h1>
-    <p class="subtitulo">Mentoria CREMESP · PHP Moderno</p>
+    <p class="subtitulo">Mentoria CREMESP · PHP Moderno · Turma 2026</p>
 </header>
 <main>
     <?= $conteudo ?>

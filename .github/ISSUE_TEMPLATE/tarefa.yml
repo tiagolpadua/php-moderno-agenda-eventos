@@ -1,0 +1,21 @@
+name: Tarefa
+description: Uma tarefa de evolução do projeto
+title: "[Tarefa] "
+labels: ["tarefa"]
+body:
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: O que precisa ser feito e por quê?
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Critérios de aceite
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true

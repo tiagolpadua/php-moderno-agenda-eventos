@@ -1,5 +1,7 @@
 # Agenda de Eventos
 
+![CI](https://github.com/tiagolpadua/php-moderno-agenda-eventos/actions/workflows/ci.yml/badge.svg)
+
 Projeto-base da **Mentoria CREMESP · PHP Moderno** — trilha DevOps (semanas 1 a 6).
 
 É uma aplicação PHP **propositalmente pequena** (sem framework) para cadastro e consulta de eventos.
@@ -10,6 +12,10 @@ versionamento, containers, pipelines de CI/CD e NGINX. A cada semana você vai e
 > `composer.json`, `tests/`), então tudo o que construirmos aqui vale também para aplicações Laravel.
 
 > **Primeiro acesso?** Siga o [Guia de preparação do ambiente](https://gist.github.com/tiagolpadua/bf92e5c21947eb658bae03229cc753f2): o que instalar, como criar o seu repositório a partir deste template e como rodar o projeto.
+
+## Autor
+
+Tiago Pádua — repositório criado na semana 1 da mentoria (fluxo issue → branch → PR).
 
 ## Funcionalidades
 
@@ -73,7 +79,7 @@ Clique no tema para abrir as atividades da semana (publicadas após cada mentori
 
 | Semana | Tema | Tarefa |
 |---|---|---|
-| 1 | [GitHub](https://gist.github.com/tiagolpadua/920dd0c9cec883bb9c816c879f4adfd9) | Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
+| 1 | [GitHub](https://gist.github.com/tiagolpadua/920dd0c9cec883bb9c816c879f4adfd9) | ✅ Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
 | 2 | Docker | _em breve_ |
 | 3 | Integração e entrega contínua | _em breve_ |
 | 4 | GitHub Actions | _em breve_ |
