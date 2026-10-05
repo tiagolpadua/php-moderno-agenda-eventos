@@ -20,6 +20,7 @@ services:
     environment:
       <<: *conexao-banco
       MIGRAR_AO_INICIAR: "false"     # quem cria as tabelas é o serviço "migracao"
+      FEATURE_BUSCA: ${FEATURE_BUSCA:-false}   # feature toggle da busca de eventos
     depends_on:
       migracao:
         condition: service_completed_successfully   # só sobe depois da migração

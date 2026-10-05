@@ -6,6 +6,8 @@ use function App\e;
 /** @var array<string, string> $erros */
 /** @var array<string, mixed> $antigos */
 /** @var bool $sucesso */
+/** @var bool $buscaAtiva */
+/** @var string|null $termo */
 ?>
 <?php if ($sucesso): ?>
     <p class="alerta sucesso" role="status">Evento cadastrado com sucesso!</p>
@@ -13,8 +15,15 @@ use function App\e;
 
 <section>
     <h2>Próximos eventos</h2>
+    <?php if ($buscaAtiva): ?>
+        <form method="get" action="/" role="search" class="busca">
+            <label for="q">Buscar por título ou local</label>
+            <input id="q" name="q" type="search" value="<?= e($termo ?? '') ?>">
+            <button type="submit">Buscar</button>
+        </form>
+    <?php endif; ?>
     <?php if ($eventos === []): ?>
-        <p>Nenhum evento cadastrado.</p>
+        <p><?= $termo !== null ? 'Nenhum evento encontrado para "' . e($termo) . '".' : 'Nenhum evento cadastrado.' ?></p>
     <?php else: ?>
         <table>
             <thead>

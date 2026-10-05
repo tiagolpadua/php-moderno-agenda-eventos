@@ -22,9 +22,12 @@ final class Aplicacao
 
     private readonly EventoRepository $eventos;
 
-    public function __construct(private readonly PDO $pdo)
+    private readonly Recursos $recursos;
+
+    public function __construct(private readonly PDO $pdo, ?Recursos $recursos = null)
     {
         $this->eventos = new EventoRepository($pdo);
+        $this->recursos = $recursos ?? Recursos::doAmbiente();
     }
 
     /**
@@ -38,7 +41,7 @@ final class Aplicacao
         $resposta = match (true) {
             $metodo === 'GET' && $caminho === '/' => $this->paginaInicial($query),
             $metodo === 'POST' && $caminho === '/eventos' => $this->cadastrar($post),
-            $metodo === 'GET' && $caminho === '/api/eventos' => $this->apiListar(),
+            $metodo === 'GET' && $caminho === '/api/eventos' => $this->apiListar($query),
             $metodo === 'GET' && preg_match('#^/api/eventos/(\d+)$#', $caminho, $m) === 1 => $this->apiBuscar((int) $m[1]),
             $metodo === 'GET' && $caminho === '/health' => $this->health(),
             default => Resposta::json(['erro' => 'Rota não encontrada'], 404),
@@ -55,8 +58,12 @@ final class Aplicacao
      */
     private function paginaInicial(array $query, array $erros = [], array $antigos = [], int $status = 200): Resposta
     {
+        $termo = $this->termoDeBusca($query);
+
         return Resposta::html(View::renderizar('eventos', [
-            'eventos' => $this->eventos->listar(),
+            'eventos' => $this->eventos->listar($termo),
+            'buscaAtiva' => $this->recursos->ativo('BUSCA'),
+            'termo' => $termo,
             'erros' => $erros,
             'antigos' => $antigos,
             'sucesso' => isset($query['cadastrado']),
@@ -78,9 +85,30 @@ final class Aplicacao
         return Resposta::redirecionar('/?cadastrado=1');
     }
 
-    private function apiListar(): Resposta
+    /**
+     * @param array<string, mixed> $query
+     */
+    private function apiListar(array $query): Resposta
     {
-        return Resposta::json(array_map(fn (Evento $e) => $e->paraArray(), $this->eventos->listar()));
+        $eventos = $this->eventos->listar($this->termoDeBusca($query));
+
+        return Resposta::json(array_map(fn (Evento $e) => $e->paraArray(), $eventos));
+    }
+
+    /**
+     * Termo de busca (?q=) — só é considerado quando o recurso BUSCA está ligado.
+     *
+     * @param array<string, mixed> $query
+     */
+    private function termoDeBusca(array $query): ?string
+    {
+        if (!$this->recursos->ativo('BUSCA')) {
+            return null;
+        }
+
+        $termo = trim((string) ($query['q'] ?? ''));
+
+        return $termo === '' ? null : $termo;
     }
 
     private function apiBuscar(int $id): Resposta

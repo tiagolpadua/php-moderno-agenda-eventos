@@ -36,3 +36,6 @@ button { padding: .6rem 1rem; background: var(--cor-primaria); color: #fff; bord
 .sucesso { background: #dcfce7; color: var(--cor-sucesso); }
 
 footer { margin-top: 2rem; color: #6b7280; }
+
+.busca { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; max-width: none; margin-bottom: 1rem; }
+.busca label { width: 100%; }

@@ -6,6 +6,7 @@ namespace Tests;
 
 use App\Aplicacao;
 use App\Database;
+use App\Recursos;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -17,9 +18,15 @@ final class AplicacaoTest extends TestCase
 
     protected function setUp(): void
     {
+        $this->app = $this->criarAplicacao(new Recursos());
+    }
+
+    private function criarAplicacao(Recursos $recursos): Aplicacao
+    {
         $pdo = Database::conectar('sqlite::memory:');
         Database::migrar($pdo);
-        $this->app = new Aplicacao($pdo);
+
+        return new Aplicacao($pdo, $recursos);
     }
 
     public function testPaginaInicialListaEventos(): void
@@ -74,5 +81,25 @@ final class AplicacaoTest extends TestCase
         $this->assertSame(200, $resposta->status);
         $this->assertSame('ok', json_decode($resposta->corpo, true)['status']);
         $this->assertArrayHasKey('X-App-Instance', $resposta->cabecalhos);
+    }
+
+    public function testBuscaDesligadaIgnoraOTermoEEscondeOFormulario(): void
+    {
+        $resposta = $this->app->tratar('GET', '/', [], ['q' => 'redes']);
+
+        $this->assertStringNotContainsString('role="search"', $resposta->corpo);
+        $this->assertCount(3, json_decode($this->app->tratar('GET', '/api/eventos', [], ['q' => 'redes'])->corpo, true));
+    }
+
+    public function testBuscaLigadaFiltraPorTituloOuLocal(): void
+    {
+        $app = $this->criarAplicacao(new Recursos(['BUSCA']));
+
+        $pagina = $app->tratar('GET', '/', [], ['q' => 'redes']);
+        $this->assertStringContainsString('role="search"', $pagina->corpo);
+        $this->assertStringContainsString('Ética médica e redes sociais', $pagina->corpo);
+        $this->assertStringNotContainsString('Atualização em emergências clínicas', $pagina->corpo);
+
+        $this->assertCount(1, json_decode($app->tratar('GET', '/api/eventos', [], ['q' => 'online'])->corpo, true));
     }
 }

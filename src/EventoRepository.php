@@ -16,11 +16,20 @@ final class EventoRepository
     }
 
     /**
+     * @param string|null $termo filtra por título ou local (opcional)
      * @return list<Evento> eventos ordenados por data
      */
-    public function listar(): array
+    public function listar(?string $termo = null): array
     {
-        $linhas = $this->pdo->query('SELECT id, titulo, data, local FROM eventos ORDER BY data, id')->fetchAll();
+        if ($termo === null) {
+            $linhas = $this->pdo->query('SELECT id, titulo, data, local FROM eventos ORDER BY data, id')->fetchAll();
+        } else {
+            $stmt = $this->pdo->prepare(
+                'SELECT id, titulo, data, local FROM eventos WHERE titulo LIKE :termo OR local LIKE :termo2 ORDER BY data, id'
+            );
+            $stmt->execute(['termo' => "%{$termo}%", 'termo2' => "%{$termo}%"]);
+            $linhas = $stmt->fetchAll();
+        }
 
         return array_map(self::hidratar(...), $linhas);
     }

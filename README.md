@@ -27,6 +27,8 @@ Tiago Pádua — repositório criado na semana 1 da mentoria (fluxo issue → br
 | `/api/eventos/{id}` | GET | Retorna um evento em JSON |
 | `/health` | GET | Verificação de saúde (banco + nome da instância) |
 
+**Busca (feature toggle):** com `FEATURE_BUSCA=true`, a página inicial mostra um campo de busca, e `/?q=termo` e `/api/eventos?q=termo` filtram por título ou local. Veja o [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Toda resposta traz o cabeçalho `X-App-Instance` com o nome da máquina/container que respondeu —
 vai ser útil quando colocarmos várias réplicas atrás de um balanceador.
 
@@ -38,6 +40,7 @@ vai ser útil quando colocarmos várias réplicas atrás de um balanceador.
 composer install          # instala o PHPUnit (dependência de desenvolvimento)
 composer serve            # sobe em http://localhost:8000
 composer test             # roda os testes
+bin/smoke-test.sh         # verifica a aplicação no ar (padrão: http://localhost:8000)
 ```
 
 > Sem Composer? Dá para só ver a aplicação funcionando com `php -S localhost:8000 -t public`.
@@ -77,7 +80,8 @@ Para usar outro banco, defina variáveis de ambiente:
 ## Estrutura
 
 ```
-bin/             comandos de linha (migrar.php)
+bin/             comandos de linha (migrar.php, smoke-test.sh)
+docs/            documentação (desenho do pipeline)
 public/          ponto de entrada (index.php) e arquivos estáticos (css)
 src/             código da aplicação (namespace App\)
 templates/       HTML das páginas
@@ -93,7 +97,7 @@ Clique no tema para abrir as atividades da semana (publicadas após cada mentori
 |---|---|---|
 | 1 | [GitHub](https://gist.github.com/tiagolpadua/920dd0c9cec883bb9c816c879f4adfd9) | ✅ Fluxo issue → branch → PR, conflito, Dependabot e primeira Action |
 | 2 | Docker | ✅ Dockerfile multi-stage, Compose com MySQL e volume, imagem no Docker Hub |
-| 3 | Integração e entrega contínua | _em breve_ |
+| 3 | Integração e entrega contínua | ✅ Desenho do pipeline ([docs/pipeline.md](docs/pipeline.md)), regras de contribuição, feature toggle e smoke test |
 | 4 | GitHub Actions | _em breve_ |
 | 5 | NGINX: proxy reverso e API gateway | _em breve_ |
 | 6 | NGINX: FastCGI, cache e HTTPS | _em breve_ |
