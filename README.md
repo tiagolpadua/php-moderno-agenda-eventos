@@ -9,6 +9,8 @@ versionamento, containers, pipelines de CI/CD e NGINX. A cada semana você vai e
 > A estrutura de pastas imita a de um projeto Laravel (`public/index.php` como ponto de entrada,
 > `composer.json`, `tests/`), então tudo o que construirmos aqui vale também para aplicações Laravel.
 
+> **Primeiro acesso?** Siga o [Guia de preparação do ambiente](https://gist.github.com/tiagolpadua/bf92e5c21947eb658bae03229cc753f2): o que instalar, como criar o seu repositório a partir deste template e como rodar o projeto.
+
 ## Funcionalidades
 
 | Rota | Método | O que faz |
